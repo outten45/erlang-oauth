@@ -13,6 +13,8 @@
 %% API functions
 %%============================================================================
 
+start([Consumer, AParams]) ->
+  gen_server:start(?MODULE, [Consumer, aparams(AParams)], []);
 start(Consumer) ->
   gen_server:start(?MODULE, Consumer, []).
 
@@ -76,12 +78,21 @@ oauth_get(header, URL, Params, Consumer, Token, TokenSecret) ->
 oauth_get(querystring, URL, Params, Consumer, Token, TokenSecret) ->
   oauth:get(URL, Params, Consumer, Token, TokenSecret).
 
+aparams({Token, Secret}) ->
+  aparams(Token, Secret).
+aparams(Token, Secret) ->
+  [{"oauth_token", Token},{"oauth_token_secret", Secret}].
+
 %%============================================================================
 %% gen_server callbacks
 %%============================================================================
 
+init([Consumer, AParams]) ->
+  {ok, {Consumer, [], AParams}};
 init(Consumer) ->
   {ok, {Consumer}}.
+
+
 
 handle_call({get_request_token, URL, Params, ParamsMethod}, _From, State={Consumer}) ->
   case oauth_get(ParamsMethod, URL, Params, Consumer, "", "") of
@@ -136,8 +147,7 @@ handle_call({get, URL, Params, ParamsMethod}, _From, State={Consumer, _RParams, 
 handle_call({access_token_params}, _From, State={_Consumer, _RParams, AParams}) ->
   {reply, AParams, State};
 handle_call({set_access_token_params, Token, Secret}, _From, {Consumer}) ->
-  AParams = [{"oauth_token", Token},{"oauth_token_secret", Secret}],
-  {reply, ok, {Consumer, [], AParams}}.
+  {reply, ok, {Consumer, [], aparams(Token, Secret)}}.
 
 handle_cast(deauthorize, {Consumer, _RParams}) ->
   {noreply, {Consumer}};
